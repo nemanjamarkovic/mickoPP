@@ -1,5 +1,4 @@
-//OPIS: primer gk
-//RETURN: 13
+//OPIS: primer gk, rezultat 13
 
 int main() {
   int x;
