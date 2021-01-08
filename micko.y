@@ -28,6 +28,7 @@
     unsigned function_param_types = 0;
   unsigned function_param_counter = 0;
   int check_stop = 0;
+  unsigned function_params[24] = {0};
   
   int out_lin = 0;
   int lab_num = -1;
@@ -71,7 +72,7 @@
 
 %type <i> num_exp exp literal function_call argument rel_exp check otherwise when when_list arguments
 %type <s> vars 
-%type <i> variable if_part log_exp increment increment_statement
+%type <i> variable if_part log_exp increment increment_statement pars
 
 
 %nonassoc ONLY_IF
@@ -156,13 +157,14 @@ pars
       insert_symbol($2, PAR, $1, 1, NO_ATR);
       set_atr1(fun_idx, get_atr1(fun_idx)+1);
       set_atr2(fun_idx, $1);
+      $$ = 1;
       }
     }
   | pars _COMMA _TYPE _ID
     {
       if($3 == VOID)
           err("parameter cannot be VOID");
-      insert_symbol($4, PAR, $3, NO_ATR, NO_ATR);
+      insert_symbol($4, PAR, $3, ++$$, NO_ATR);
       set_atr1(fun_idx, get_atr1(fun_idx)+1);
       set_atr2(fun_idx, get_atr2(fun_idx)*10 + $3);
     }
@@ -265,6 +267,7 @@ num_exp
           err("invalid operands arithmetic operation");
         int t1 = get_type($1);    
         code("\n\t\t%s\t", ar_instructions[$2 + (t1 - 1) * AROP_NUMBER]);
+        print_symtab();
         gen_sym_name($1);
         code(",");
         gen_sym_name($3);
@@ -348,14 +351,20 @@ function_call
         if(get_atr1(fcall_idx) != function_param_counter){
           err("wrong number of args to function '%s'", get_name(fcall_idx));
         }
+
+        for(int i = function_param_counter - 1; i >= 0; i--){  
+          free_if_reg(function_params[i]);
+          code("\n\t\t\tPUSH\t");
+          gen_sym_name(function_params[i]);
+        }
         code("\n\t\t\tCALL\t%s", get_name(fcall_idx));
-        if($4 > 0)
-          code("\n\t\t\tADDS\t%%15,$%d,%%15", $4 * 4);
+        if(function_param_counter > 0)
+          code("\n\t\t\tADDS\t%%15,$%d,%%15", function_param_counter * 4);
 
         set_type(FUN_REG, get_type(fcall_idx));
         $$ = FUN_REG;
-        function_param_counter = 0;
-        function_param_types = 0;
+        // function_param_counter = 0;
+        // function_param_types = 0;
       }
   ;
 
@@ -369,15 +378,17 @@ argument
 arguments
   : num_exp
     {
+      function_params[function_param_counter] = $1;
       function_param_types = (function_param_types * 10) + get_type($1);
       function_param_counter++;
-      free_if_reg($1);
-      code("\n\t\t\tPUSH\t");
-      gen_sym_name($1);
+      // free_if_reg($1);
+      // code("\n\t\t\tPUSH\t");
+      // gen_sym_name($1);
       $$ = 1;
     }
   | arguments _COMMA num_exp
     {
+      function_params[function_param_counter] = $3;
       function_param_types = (function_param_types * 10) + get_type($3);
       function_param_counter++;
       $$ = $$ + 1;
