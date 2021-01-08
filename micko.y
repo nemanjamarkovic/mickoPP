@@ -324,10 +324,10 @@ increment
         if($1 == NO_INDEX)
           err("invalid increment");
         else {
-          code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
-          gen_sym_name($1);
-          code(",$1,");
-          gen_sym_name($1);
+          // code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
+          // gen_sym_name($1);
+          // code(",$1,");
+          // gen_sym_name($1);
         }
       }
    ;
@@ -460,28 +460,53 @@ for
       //provjera da li postoji lok prom
       if(lookup_symbol($3, VAR|PAR) == NO_INDEX ){
         
-        insert_symbol($3, VAR, $2, 1, 0);
+        insert_symbol($3, VAR, $2, ++var_num, 0);
         
       }
       else
         err("variable is '%s' already declared", $3);
   }
     _IN _LPAREN literal  _DDOT literal  _RPAREN {
-      
-
       //printf("%d %d %d", $2, get_type($6), get_type($8));
+      int i = lookup_symbol($3, VAR|PAR);
       if($2 != get_type($7) || $2 != get_type($9))
         err("iterator must be same type as boundaries");
 
       if(atoi(get_name($7)) > atoi(get_name($9)))
         err(" start value must be smaller than top value");
+
+      print_symtab();
+      gen_mov($7,i);
+      $<i>$ = ++lab_num;
+      code("\n@for%d:", lab_num);
+
+      if(get_type(i) == INT) {
+        code("\n\t\tCMPS\t");
+        gen_sym_name(i);
+        code(",");
+        gen_sym_name($9);
+        code("\n\t\tJGES\t@exit%d", $<i>$ );
+      }
+      else {
+        code("\n\t\tCMPU\t");
+        gen_sym_name(i);
+        code(",");
+        gen_sym_name($9);
+        code("\n\t\tJGEU\t@exit%d", $<i>$ );
+      }
   }
-
-    body{
-
+    statement{
+      int i = lookup_symbol($3, VAR|PAR);
+      code("\n\t\t%s\t", ar_instructions[ADD + (get_type(i) - 1) * AROP_NUMBER]);
+      gen_sym_name(i);
+      code(",$1,");
+      gen_sym_name(i);
       clear_symbols($<i>4);  
-      
+      print_symtab();
       //print_symtab();
+      code("\n\t\tJMP \t@for%d", $<i>11);
+      code("\n@exit%d:", $<i>11);
+
     }
 
 
