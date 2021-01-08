@@ -71,7 +71,7 @@
 
 %type <i> num_exp exp literal function_call argument rel_exp  increment check otherwise when when_list arguments
 %type <s> vars
-%type <i> variable
+%type <i> variable if_part log_exp
 
 
 %nonassoc ONLY_IF
@@ -100,6 +100,10 @@ function
           fun_idx = insert_symbol($2, FUN, $1, NO_ATR, NO_ATR);
         else 
           err("redefinition of function '%s'", $2);
+
+        code("\n%s:", $2);
+        code("\n\t\tPUSH\t%%14");
+        code("\n\t\tMOV \t%%15,%%14");
       }
     _LPAREN parameter _RPAREN body
       {
@@ -108,6 +112,12 @@ function
         return_cnt = 0;
         clear_symbols(fun_idx + 1);
         var_num = 0;
+
+        code("\n@%s_exit:", $2);
+        code("\n\t\tMOV \t%%14,%%15");
+        code("\n\t\tPOP \t%%14");
+        code("\n\t\tRET");
+
       }
   ;
 
@@ -141,7 +151,13 @@ pars
   ;
 
 body
-  : _LBRACKET variable_list statement_list _RBRACKET
+  : _LBRACKET variable_list 
+      {
+        if(var_num)
+          code("\n\t\tSUBS\t%%15,$%d,%%15", 4*var_num);
+        code("\n@%s_body:", get_name(fun_idx));
+      }
+  statement_list _RBRACKET
   ;
 
 body_finish
@@ -206,11 +222,6 @@ statement
   ;
 
 
-
-
-
-
-
 compound_statement
   : _LBRACKET statement_list _RBRACKET
   ;
@@ -224,6 +235,7 @@ assignment_statement
         else
           if(get_type(idx) != get_type($3))
             err("incompatible types in assignment");
+        gen_mov($3, idx);
       }
   ;
 
@@ -233,6 +245,17 @@ num_exp
       {
         if(get_type($1) != get_type($3))
           err("invalid operands arithmetic operation");
+        int t1 = get_type($1);    
+        code("\n\t\t%s\t", ar_instructions[$2 + (t1 - 1) * AROP_NUMBER]);
+        gen_sym_name($1);
+        code(",");
+        gen_sym_name($3);
+        code(",");
+        free_if_reg($3);
+        free_if_reg($1);
+        $$ = take_reg();
+        gen_sym_name($$);
+        set_type($$, t1);
       }
   ;
 
@@ -248,6 +271,11 @@ exp
       }
   | increment
   | function_call
+      {
+        $$ = take_reg();
+        gen_mov(FUN_REG, $$);
+
+      }
   | _LPAREN num_exp _RPAREN
       { $$ = $2; }
   ;
@@ -292,6 +320,10 @@ function_call
         if(get_atr1(fcall_idx) != function_param_counter){
           err("wrong number of args to function '%s'", get_name(fcall_idx));
         }
+        code("\n\t\t\tCALL\t%s", get_name(fcall_idx));
+        if($4 > 0)
+          code("\n\t\t\tADDS\t%%15,$%d,%%15", $4 * 4);
+
         set_type(FUN_REG, get_type(fcall_idx));
         $$ = FUN_REG;
         function_param_counter = 0;
@@ -311,6 +343,9 @@ arguments
     {
       function_param_types = (function_param_types * 10) + get_type($1);
       function_param_counter++;
+      free_if_reg($1);
+      code("\n\t\t\tPUSH\t");
+      gen_sym_name($1);
       $$ = 1;
     }
   | arguments _COMMA num_exp
@@ -325,11 +360,28 @@ arguments
 
 if_statement
   : if_part %prec ONLY_IF
+      { code("\n@exit%d:", $1); }
   | if_part _ELSE statement
+      { code("\n@exit%d:", $1); }
   ;
 
 if_part
-  : _IF _LPAREN log_exp _RPAREN statement
+  : _IF _LPAREN 
+      {
+        $<i>$ = ++lab_num;
+        code("\n@if%d:", lab_num);
+      }
+  log_exp 
+      {
+        // code("\n\t\t%s\t@false%d", opp_jumps[$4], $<i>3);
+        code("\n@true%d:", $<i>3);
+      }
+  _RPAREN statement
+      {
+        code("\n\t\tJMP \t@exit%d", $<i>3);
+        code("\n@false%d:", $<i>3);
+        $$ = $<i>3;
+      }
   ;
 
 log_exp
@@ -344,6 +396,9 @@ rel_exp
       {
         if(get_type($1) != get_type($3))
           err("invalid operands relational operator");
+        $$ = $2 + ((get_type($1) - 1) * RELOP_NUMBER);
+        gen_cmp($1, $3);
+        
       }
   ;
 
@@ -357,6 +412,8 @@ return_statement
         }else
           err("void cant have return value");
         return_cnt++;
+        gen_mov($2, FUN_REG);
+        code("\n\t\tJMP \t@%s_exit", get_name(fun_idx));        
       }
   | _RETURN _SEMICOLON{
     if(get_type(fun_idx) != VOID)
