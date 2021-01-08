@@ -69,9 +69,9 @@
 %token _FOLLOWS
 
 
-%type <i> num_exp exp literal function_call argument rel_exp  increment check otherwise when when_list arguments
-%type <s> vars
-%type <i> variable if_part log_exp
+%type <i> num_exp exp literal function_call argument rel_exp check otherwise when when_list arguments
+%type <s> vars 
+%type <i> variable if_part log_exp increment increment_statement
 
 
 %nonassoc ONLY_IF
@@ -313,13 +313,23 @@ literal
 increment  
   : _ID _INCREMENT {
       $$ = lookup_symbol($1, VAR|PAR|GVAR);
-      if($$ == NO_INDEX)
-        err("invalid increment");
+      // if($$ == NO_INDEX)
+      //   err("invalid increment");
     }
   ;
 
    increment_statement
    : increment _SEMICOLON
+      {
+        if($1 == NO_INDEX)
+          err("invalid increment");
+        else {
+          code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
+          gen_sym_name($1);
+          code(",$1,");
+          gen_sym_name($1);
+        }
+      }
    ;
 
 function_call
