@@ -316,7 +316,7 @@ function_call
         if(get_atr2(fcall_idx) != function_param_types){
           err("wrong param types '%s'", get_name(fcall_idx));
         }
-        printf ("\n %d %d ", get_atr1(fcall_idx), function_param_counter);
+        // printf ("\n %d %d ", get_atr1(fcall_idx), function_param_counter);
         if(get_atr1(fcall_idx) != function_param_counter){
           err("wrong number of args to function '%s'", get_name(fcall_idx));
         }
@@ -373,7 +373,7 @@ if_part
       }
   log_exp 
       {
-        // code("\n\t\t%s\t@false%d", opp_jumps[$4], $<i>3);
+        code("\n\t\t%s\t@false%d", opp_jumps[$4], $<i>3);
         code("\n@true%d:", $<i>3);
       }
   _RPAREN statement
