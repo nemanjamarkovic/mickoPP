@@ -32,6 +32,7 @@
   int check_var = -1;
   int last_when = -1;
   int check_exit = -1;
+  unsigned assignment_increment[24] = {0};
 
   int out_lin = 0;
   int lab_num = -1;
@@ -74,8 +75,8 @@
 
 
 %type <i> num_exp exp literal function_call argument rel_exp check when arguments
-%type <s> vars 
-%type <i> variable if_part log_exp increment increment_statement pars when_list
+%type <i> variable if_part log_exp increment_statement pars when_list
+%type <s> vars increment
 
 
 %nonassoc ONLY_IF
@@ -183,11 +184,6 @@ body
   statement_list _RBRACKET
   ;
 
-// body_finish
-//   :_LBRACKET variable_list statement_list  _RBRACKET
-//   |_LBRACKET variable_list statement_list _FINISH _SEMICOLON _RBRACKET
-//   ;
-
 variable_list
   : /* empty */
   | variable_list variable
@@ -240,7 +236,7 @@ statement
   | if_statement
   | return_statement
   | increment_statement
-  | for
+  | for_statement
   | check_statement
   ;
 
@@ -259,6 +255,18 @@ assignment_statement
           if(get_type(idx) != get_type($3))
             err("incompatible types in assignment");
         gen_mov($3, idx);
+
+        for (int i = 0; i < 24; i++){
+          if (assignment_increment[i] != 0) {
+            code("\n\t\t%s\t", ar_instructions[ADD + (get_type(assignment_increment[i]) - 1) * AROP_NUMBER]);
+            gen_sym_name(assignment_increment[i]);
+            code(",$1,");
+            gen_sym_name(assignment_increment[i]);
+            assignment_increment[i] = 0;
+          }
+          else 
+            break;
+        }
       }
   ;
 
@@ -268,18 +276,20 @@ num_exp
       {
         if(get_type($1) != get_type($3))
           err("invalid operands arithmetic operation");
-        int t1 = get_type($1);    
-        code("\n\t\t%s\t", ar_instructions[$2 + (t1 - 1) * AROP_NUMBER]);
-        // print_symtab();
-        gen_sym_name($1);
-        code(",");
-        gen_sym_name($3);
-        code(",");
-        free_if_reg($3);
-        free_if_reg($1);
-        $$ = take_reg();
-        gen_sym_name($$);
-        set_type($$, t1);
+        else {
+          int t1 = get_type($1);    
+          code("\n\t\t%s\t", ar_instructions[$2 + (t1 - 1) * AROP_NUMBER]);
+          // print_symtab();
+          gen_sym_name($1);
+          code(",");
+          gen_sym_name($3);
+          code(",");
+          free_if_reg($3);
+          free_if_reg($1);
+          $$ = take_reg();
+          gen_sym_name($$);
+          set_type($$, t1);
+        }
       }
   ;
 
@@ -293,7 +303,20 @@ exp
         if($$ == NO_INDEX)
           err("'%s' undeclared", $1);
       }
-  | increment
+  | increment {
+        $$ = lookup_symbol($1, VAR|PAR|GVAR);
+        
+        if($$ == NO_INDEX)
+          err("'%s' undeclared", $1);
+        else {
+          for (int i = 0; i < 24; i++) {
+              if (assignment_increment[i] == 0) {
+                assignment_increment[i] = $$;
+                break;
+              }
+            }
+        }
+  }
   | function_call
       {
         $$ = take_reg();
@@ -318,22 +341,21 @@ literal
 
 increment  
   : _ID _INCREMENT {
-      $$ = lookup_symbol($1, VAR|PAR|GVAR);
-      // if($$ == NO_INDEX)
-      //   err("invalid increment");
+        $$ = $1;
     }
   ;
 
    increment_statement
    : increment _SEMICOLON
       {
-        if($1 == NO_INDEX)
+        $$ = lookup_symbol($1, VAR|PAR|GVAR);
+        if($$ == NO_INDEX)
           err("invalid increment");
         else {
-          code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
-          gen_sym_name($1);
+          code("\n\t\t%s\t", ar_instructions[ADD + (get_type($$) - 1) * AROP_NUMBER]);
+          gen_sym_name($$);
           code(",$1,");
-          gen_sym_name($1);
+          gen_sym_name($$);
         }
       }
    ;
@@ -467,7 +489,7 @@ return_statement
   ;
 
 
-for
+for_statement
   : _FOR _TYPE _ID  {
       //print_symtab();
       int last = get_last_element() + 1;

@@ -2,7 +2,7 @@
 
 int abs(int i) {
   int res,a;
-  unsigned ab;
+  int ab;
   //void b;
 
   
@@ -23,8 +23,8 @@ int abs(int i) {
     when 2 =>
       {
         a = a + 1;
-        finish;  
       }
+        finish;  
 
 
     otherwise =>
