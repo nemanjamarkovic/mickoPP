@@ -560,8 +560,8 @@ check_statement
 
 check
   : when_list {
-      code("\n@when_check%d:", ++lab_num);
-      code("\n@when%d:", lab_num);
+      code("\n@when_check%d:", last_when+1);
+      code("\n@when%d:", last_when+1);
      $$ = $1;}
   | when_list otherwise {
      $$ = $1;} 
@@ -569,13 +569,13 @@ check
 
 when_list
   : when { 
-      code("\n\t\tJMP \t@when%d", lab_num+1);
+      code("\n\t\tJMP \t@when%d", last_when+1);
       $$ = $1;}
   | when _FINISH _SEMICOLON {
     code("\n\t\tJMP \t@check_exit%d", check_exit);
      $$ = $1;}
   | when_list when { 
-      code("\n\t\tJMP \t@when%d", lab_num+1);
+      code("\n\t\tJMP \t@when%d", last_when+1);
       $$ = $2;
       }
   | when_list when _FINISH _SEMICOLON { 
@@ -598,19 +598,17 @@ when
         when_cnt++;
       }
 
-      last_when = ++lab_num;
-      
-      code("\n@when_check%d:", lab_num);
+      code("\n@when_check%d:", ++last_when);
 
       code("\n\t\tCMPS\t");
       gen_sym_name(check_var);
       code(",");
       gen_sym_name($2);
-      code("\n\t\tJEQ\t\t@when%d", lab_num);
-      code("\n\t\tJMP \t@when_check%d", lab_num+1);
+      code("\n\t\tJEQ\t\t@when%d", last_when);
+      code("\n\t\tJMP \t@when_check%d", last_when+1);
 
 
-      code("\n@when%d:", lab_num);
+      code("\n@when%d:", last_when);
 
     } 
   _FOLLOWS statement {
@@ -620,10 +618,10 @@ when
 
 otherwise 
   : _OTHERW _FOLLOWS {
-      code("\n@when_check%d:", ++lab_num);
-      code("\n@otherwise%d:", lab_num);
+      code("\n@when_check%d:", ++last_when);
+      code("\n@otherwise%d:", last_when);
   } statement  {
-      code("\n@when%d:", lab_num);
+      code("\n@when%d:", last_when);
       code("\n\t\tJMP \t@check_exit%d", check_exit);
   }
   ;
