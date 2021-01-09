@@ -531,6 +531,36 @@ for
   | _INT_NUMBER { $$ = $1;}
   ; */
 
+check_statement
+  : _CHECK _LPAREN _ID{
+      check_stop = 0;
+      if(lookup_symbol($3, VAR|PAR) == NO_INDEX){
+        err("no such variable found");
+        check_stop ++;
+      }
+      $<i>$ = ++lab_num;
+      code("\n@check%d:", lab_num);
+     } _RPAREN _LBRACKET check{
+       int var_id = lookup_symbol($3, VAR|PAR);
+      
+      //provjera da li je istog tipa promjenjiva u check i parametar u when
+      if(get_type(var_id) != get_type($7) && check_stop == 0)
+        err("var '%s' is not the same type as parametar '%s'",$3, get_name($7));
+     } _RBRACKET
+  ;
+
+check
+  : when_list { $$ = $1;}
+  | when_list otherwise { $$ = $1;} 
+  ;
+
+when_list
+  : when { $$ = $1;}
+  | when _FINISH _SEMICOLON { $$ = $1;}
+  | when_list when { $$ = $2;}
+  | when_list when _FINISH _SEMICOLON { $$ = $2;}
+  ;
+
 when
   : _WHEN literal{
       int i = 0;
@@ -557,35 +587,8 @@ otherwise
   ;
 
 
-check_statement
-  : _CHECK _LPAREN _ID{
-      check_stop = 0;
-      if(lookup_symbol($3, VAR|PAR) == NO_INDEX){
-        err("no such variable found");
-        check_stop ++;
-        
-      }
-     } _RPAREN _LBRACKET check{
-       int var_id = lookup_symbol($3, VAR|PAR);
-      
-      //provjera da li je istog tipa promjenjiva u check i parametar u when
-      if(get_type(var_id) != get_type($7) && check_stop == 0)
-        err("var '%s' is not the same type as parametar '%s'",$3, get_name($7));
-     } _RBRACKET
-  ;
 
 
-when_list
-  : when { $$ = $1;}
-  | when _FINISH _SEMICOLON { $$ = $1;}
-  | when_list when { $$ = $2;}
-  | when_list when _FINISH _SEMICOLON { $$ = $2;}
-  ;
-
-check
-  : when_list { $$ = $1;}
-  | when_list otherwise { $$ = $1;} 
-  ;
 
 
 %%
