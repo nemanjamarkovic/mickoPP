@@ -70,9 +70,9 @@
 %token _FOLLOWS
 
 
-%type <i> num_exp exp literal function_call argument rel_exp check otherwise when when_list arguments
+%type <i> num_exp exp literal function_call argument rel_exp check when arguments
 %type <s> vars 
-%type <i> variable if_part log_exp increment increment_statement pars
+%type <i> variable if_part log_exp increment increment_statement pars when_list
 
 
 %nonassoc ONLY_IF
@@ -180,10 +180,10 @@ body
   statement_list _RBRACKET
   ;
 
-body_finish
-  :_LBRACKET variable_list statement_list  _RBRACKET
-  |_LBRACKET variable_list statement_list _FINISH _SEMICOLON _RBRACKET
-  ;
+// body_finish
+//   :_LBRACKET variable_list statement_list  _RBRACKET
+//   |_LBRACKET variable_list statement_list _FINISH _SEMICOLON _RBRACKET
+//   ;
 
 variable_list
   : /* empty */
@@ -542,21 +542,18 @@ when
         i++;
       }
       if (i == when_cnt) { //ako nije duplikat
-      when_arr[when_cnt] = $2; //ubaci konstantu u niz
-      when_cnt++;
+        when_arr[when_cnt] = $2; //ubaci konstantu u niz
+        when_cnt++;
       }
-      
-
-
     } 
-  _FOLLOWS body_finish{
+  _FOLLOWS statement {
       $$ = $2;
-      
-  }
+    }
   ;
 
 otherwise 
-  : _OTHERW _FOLLOWS body_finish{}
+  : _OTHERW _FOLLOWS statement
+  // | _OTHERW _FOLLOWS statement _FINISH _SEMICOLON
   ;
 
 
@@ -579,8 +576,10 @@ check_statement
 
 
 when_list
-  : when{$$ = $1;}
-  | when_list when{$$ = $2;}
+  : when { $$ = $1;}
+  | when _FINISH _SEMICOLON { $$ = $1;}
+  | when_list when { $$ = $2;}
+  | when_list when _FINISH _SEMICOLON { $$ = $2;}
   ;
 
 check
