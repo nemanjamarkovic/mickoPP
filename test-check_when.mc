@@ -1,5 +1,7 @@
 int main(){
     int ab,a;
+    ab = 3;
+    a = 0;
     check (ab) {
         when 1 => 
             a = a + 66;
@@ -17,19 +19,19 @@ int main(){
     }
 
 //otherwise je opcionalan
-    check (ab) {
-        when 2 => 
-        {
-            a = a + 66;
-        }
-        when 5 =>
-        {
-            a = a + 1;
-        }
-            finish;  
-    }
+    // check (ab) {
+    //     when 2 => 
+    //     {
+    //         a = a + 66;
+    //     }
+    //         finish;  
+    //     when 5 =>
+    //     {
+    //         a = a + 1;
+    //     }
+    // }
     
 
 
-    return 0;
+    return a;
 }

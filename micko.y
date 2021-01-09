@@ -29,7 +29,10 @@
   unsigned function_param_counter = 0;
   int check_stop = 0;
   unsigned function_params[24] = {0};
-  
+  int check_var = -1;
+  int last_when = -1;
+  int check_exit = -1;
+
   int out_lin = 0;
   int lab_num = -1;
   FILE *output;
@@ -540,7 +543,13 @@ check_statement
       }
       $<i>$ = ++lab_num;
       code("\n@check%d:", lab_num);
+      
+      check_var = lookup_symbol($3, VAR|PAR);
+      check_exit = lab_num;
+
      } _RPAREN _LBRACKET check{
+      code("\n@check_exit%d:", $<i>4);
+
        int var_id = lookup_symbol($3, VAR|PAR);
       
       //provjera da li je istog tipa promjenjiva u check i parametar u when
@@ -550,15 +559,38 @@ check_statement
   ;
 
 check
-  : when_list { $$ = $1;}
-  | when_list otherwise { $$ = $1;} 
+  : when_list {
+      code("\n@when_check%d:", ++lab_num);
+      code("\n@when%d:", lab_num);
+     $$ = $1;}
+  | when_list otherwise {
+      // code("\n@when_check%d:", ++lab_num);
+      // code("\n@when%d:", lab_num);
+      // code("\n@otherwise%d:", lab_num);
+     $$ = $1;} 
   ;
 
 when_list
-  : when { $$ = $1;}
-  | when _FINISH _SEMICOLON { $$ = $1;}
-  | when_list when { $$ = $2;}
-  | when_list when _FINISH _SEMICOLON { $$ = $2;}
+  : when { 
+      // code("\n@when_end%d:", lab_num);
+      code("\n\t\tJMP \t@when%d", lab_num+1);
+
+      $$ = $1;}
+  | when _FINISH _SEMICOLON {
+    code("\n\t\tJMP \t@check_exit%d", check_exit);
+      // code("\n@when_end%d:", lab_num);
+
+     $$ = $1;}
+  | when_list when { 
+      // code("\n@when_end%d:", lab_num);
+      code("\n\t\tJMP \t@when%d", lab_num+1);
+
+      $$ = $2;
+      }
+  | when_list when _FINISH _SEMICOLON { 
+      code("\n\t\tJMP \t@check_exit%d", check_exit);
+      // code("\n@when_end%d:", lab_num);
+      $$ = $2;}
   ;
 
 when
@@ -575,6 +607,21 @@ when
         when_arr[when_cnt] = $2; //ubaci konstantu u niz
         when_cnt++;
       }
+
+      last_when = ++lab_num;
+      
+      code("\n@when_check%d:", lab_num);
+
+      code("\n\t\tCMPS\t");
+      gen_sym_name(check_var);
+      code(",");
+      gen_sym_name($2);
+      code("\n\t\tJEQ\t\t@when%d", lab_num);
+      code("\n\t\tJMP \t@when_check%d", lab_num+1);
+
+
+      code("\n@when%d:", lab_num);
+
     } 
   _FOLLOWS statement {
       $$ = $2;
@@ -582,7 +629,14 @@ when
   ;
 
 otherwise 
-  : _OTHERW _FOLLOWS statement
+  : _OTHERW _FOLLOWS {
+      code("\n@when_check%d:", ++lab_num);
+      code("\n@otherwise%d:", lab_num);
+      // code("\n@otherwise%d:", lab_num);
+  } statement  {
+      code("\n@when%d:", lab_num);
+      code("\n\t\tJMP \t@check_exit%d", check_exit);
+  }
   // | _OTHERW _FOLLOWS statement _FINISH _SEMICOLON
   ;
 
