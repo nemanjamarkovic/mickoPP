@@ -564,32 +564,22 @@ check
       code("\n@when%d:", lab_num);
      $$ = $1;}
   | when_list otherwise {
-      // code("\n@when_check%d:", ++lab_num);
-      // code("\n@when%d:", lab_num);
-      // code("\n@otherwise%d:", lab_num);
      $$ = $1;} 
   ;
 
 when_list
   : when { 
-      // code("\n@when_end%d:", lab_num);
       code("\n\t\tJMP \t@when%d", lab_num+1);
-
       $$ = $1;}
   | when _FINISH _SEMICOLON {
     code("\n\t\tJMP \t@check_exit%d", check_exit);
-      // code("\n@when_end%d:", lab_num);
-
      $$ = $1;}
   | when_list when { 
-      // code("\n@when_end%d:", lab_num);
       code("\n\t\tJMP \t@when%d", lab_num+1);
-
       $$ = $2;
       }
   | when_list when _FINISH _SEMICOLON { 
       code("\n\t\tJMP \t@check_exit%d", check_exit);
-      // code("\n@when_end%d:", lab_num);
       $$ = $2;}
   ;
 
@@ -632,19 +622,11 @@ otherwise
   : _OTHERW _FOLLOWS {
       code("\n@when_check%d:", ++lab_num);
       code("\n@otherwise%d:", lab_num);
-      // code("\n@otherwise%d:", lab_num);
   } statement  {
       code("\n@when%d:", lab_num);
       code("\n\t\tJMP \t@check_exit%d", check_exit);
   }
-  // | _OTHERW _FOLLOWS statement _FINISH _SEMICOLON
   ;
-
-
-
-
-
-
 %%
 
 int yyerror(char *s) {
