@@ -267,7 +267,7 @@ num_exp
           err("invalid operands arithmetic operation");
         int t1 = get_type($1);    
         code("\n\t\t%s\t", ar_instructions[$2 + (t1 - 1) * AROP_NUMBER]);
-        print_symtab();
+        // print_symtab();
         gen_sym_name($1);
         code(",");
         gen_sym_name($3);
@@ -327,10 +327,10 @@ increment
         if($1 == NO_INDEX)
           err("invalid increment");
         else {
-          // code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
-          // gen_sym_name($1);
-          // code(",$1,");
-          // gen_sym_name($1);
+          code("\n\t\t%s\t", ar_instructions[ADD + (get_type($1) - 1) * AROP_NUMBER]);
+          gen_sym_name($1);
+          code(",$1,");
+          gen_sym_name($1);
         }
       }
    ;
@@ -344,6 +344,8 @@ function_call
       }
     _LPAREN argument _RPAREN
       {
+        // print_symtab();
+        // printf("%d", function_param_types);
         if(get_atr2(fcall_idx) != function_param_types){
           err("wrong param types '%s'", get_name(fcall_idx));
         }
@@ -363,8 +365,8 @@ function_call
 
         set_type(FUN_REG, get_type(fcall_idx));
         $$ = FUN_REG;
-        // function_param_counter = 0;
-        // function_param_types = 0;
+        function_param_counter = 0;
+        function_param_types = 0;
       }
   ;
 
@@ -486,7 +488,7 @@ for
       if(atoi(get_name($7)) > atoi(get_name($9)))
         err(" start value must be smaller than top value");
 
-      print_symtab();
+      // print_symtab();
       gen_mov($7,i);
       $<i>$ = ++lab_num;
       code("\n@for%d:", lab_num);
@@ -513,7 +515,7 @@ for
       code(",$1,");
       gen_sym_name(i);
       clear_symbols($<i>4);  
-      print_symtab();
+      // print_symtab();
       //print_symtab();
       code("\n\t\tJMP \t@for%d", $<i>11);
       code("\n@exit%d:", $<i>11);
